@@ -3,41 +3,75 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Navegación Tomografía - Sin Marcadores</title>
-
-    <!-- Cargar A-Frame -->
+    <title>Navegación Sanatorio - AR</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- Cargar AR.js con soporte para geolocalización o variantes sin marcador -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+      #panel-control {
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 999; background: rgba(0, 85, 165, 0.95); color: white;
+        padding: 12px 20px; border-radius: 12px; font-family: sans-serif;
+        text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.4); width: 90%; max-width: 400px;
+      }
+      input[type=range] { width: 100%; margin-top: 8px; accent-color: #00E5FF; }
+    </style>
   </head>
   <body style="margin: 0; overflow: hidden;">
 
-    <!-- Interfaz superpuesta (HUD) para guiar al usuario en pantalla -->
-    <div id="hud" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 999; background: rgba(0, 85, 165, 0.9); color: white; padding: 10px 20px; border-radius: 8px; font-family: sans-serif; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-      <strong>Servicio de Tomografía</strong><br>
-      <span id="instruction" style="font-size: 14px;">Apunta al piso y camina derecho 15 metros</span>
+    <!-- Panel de Control Deslizante (Simula el avance por el pasillo desde el Punto 0) -->
+    <div id="panel-control">
+      <strong>Recorrido del Pasillo</strong><br>
+      <span id="distancia-texto" style="font-size: 14px;">Distancia: 0 metros (Ingreso)</span>
+      <input type="range" id="slider-pasillo" min="0" max="25" value="0" step="1" oninput="actualizarPosicion(this.value)">
     </div>
 
-    <!-- Escena AR interactiva -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
+    <!-- Escena WebAR -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-      <!-- Contenedor que aparecerá flotando frente al usuario al avanzar -->
-      <a-entity id="tomografia-punto" position="0 0 -4">
-        
-        <!-- Cartel flotante automático -->
-        <a-plane position="0 1.5 0" rotation="0 0 0" width="2.2" height="0.9" color="#0055A5">
-          <a-text value="LLEGISTE A:\nTOMOGRAFIA\nConsultorio 12" align="center" color="#FFFFFF" position="0 0 0.1" scale="0.7 0.7 0.7"></a-text>
+      <!-- SERVICIO 1: FARMACIA (Aparece a los 5 metros) -->
+      <a-entity id="servicio-farmacia" position="0 1.5 -5" visible="false">
+        <a-plane width="2.2" height="0.8" color="#2E7D32">
+          <a-text value="FARMACIA\nRetiro de Medicamentos" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
         </a-plane>
-
-        <!-- Indicador 3D animado -->
-        <a-cone radius-bottom="0.3" radius-top="0" height="0.6" color="#00E5FF" position="0 0.4 0" animation="property: position; to: 0 0.7 0; dir: alternate; dur: 1000; loop: true"></a-cone>
-
       </a-entity>
 
-      <!-- Cámara del dispositivo con control de sensores -->
+      <!-- SERVICIO 2: TOMOGRAFÍA (Aparece a los 12 metros) -->
+      <a-entity id="servicio-tomografia" position="0 1.5 -12" visible="false">
+        <a-plane width="2.2" height="0.8" color="#0055A5">
+          <a-text value="SERVICIO DE TOMOGRAFIA\nConsultorio 12" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
+        </a-plane>
+        <a-cone radius-bottom="0.3" radius-top="0" height="0.6" color="#00E5FF" position="0 0.6 0" animation="property: position; to: 0 0.9 0; dir: alternate; dur: 800; loop: true"></a-cone>
+      </a-entity>
+
+      <!-- SERVICIO 3: CÁMARA GAMMA (Aparece a los 20 metros) -->
+      <a-entity id="servicio-camara" position="0 1.5 -20" visible="false">
+        <a-plane width="2.2" height="0.8" color="#6A1B9A">
+          <a-text value="CAMARA GAMMA\nMedicina Nuclear" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Cámara -->
       <a-entity camera></a-entity>
-      
     </a-scene>
 
+    <script>
+      function actualizarPosicion(metros) {
+        document.getElementById('distancia-texto').innerText = "Distancia recorrida: " + metros + " metros";
+
+        // Lógica de visibilidad según los metros recorridos en el pasillo
+        let farmacia = document.getElementById('servicio-farmacia');
+        let tomografia = document.getElementById('servicio-tomografia');
+        let camara = document.getElementById('servicio-camara');
+
+        // Farmacia visible entre 3 y 8 metros
+        farmacia.setAttribute('visible', metros >= 3 && metros <= 8);
+
+        // Tomografía visible entre 10 y 16 metros
+        tomografia.setAttribute('visible', metros >= 10 && metros <= 16);
+
+        // Cámara Gamma visible a partir de los 18 metros
+        camara.setAttribute('visible', metros >= 18);
+      }
+    </script>
   </body>
 </html>
