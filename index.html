@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Navegación AR - Tomografía</title>
+
+    <!-- 1. Cargar A-Frame (Motor 3D) -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- 2. Cargar AR.js (Motor de Realidad Aumentada) -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  </head>
+  <body style="margin: 0; overflow: hidden;">
+
+    <!-- Escena WebAR habilitada para usar la cámara web -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+
+      <!-- Marcador QR/Hiro (El patrón impreso en el ingreso) -->
+      <a-marker preset="hiro">
+
+        <!-- 1. Cartel del Servicio (Tomografía) -->
+        <a-plane position="0 1.5 0" rotation="0 0 0" width="2" height="0.8" color="#0055A5">
+          <a-text value="SERVICIO DE TOMOGRAFIA\nSiga las flechas" align="center" color="#FFFFFF" scale="0.8 0.8 0.8"></a-text>
+        </a-plane>
+
+        <!-- 2. Flecha 3D de Dirección 1 (Avanzar) -->
+        <a-entity position="0 0.2 -1" rotation="-90 0 0">
+          <a-cone radius-bottom="0.2" radius-top="0" height="0.5" color="#00E5FF"></a-cone>
+          <a-cylinder radius="0.08" height="0.6" position="0 -0.4 0" color="#0055A5"></a-cylinder>
+        </a-entity>
+
+        <!-- 3. Flecha 3D de Dirección 2 (Giro a la derecha) -->
+        <a-entity position="0.8 0.2 -2" rotation="-90 -45 0">
+          <a-cone radius-bottom="0.2" radius-top="0" height="0.5" color="#00E5FF"></a-cone>
+          <a-cylinder radius="0.08" height="0.6" position="0 -0.4 0" color="#0055A5"></a-cylinder>
+        </a-entity>
+
+      </a-marker>
+
+      <!-- Entidad Cámara AR del Celular -->
+      <a-entity camera></a-entity>
+
+    </a-scene>
+  </body>
+</html>
