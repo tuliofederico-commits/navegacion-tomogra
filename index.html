@@ -3,43 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Navegación AR - Tomografía</title>
+    <title>NavegaciÃ³n TomografÃ­a - Sin Marcadores</title>
 
-    <!-- 1. Cargar A-Frame (Motor 3D) -->
+    <!-- Cargar A-Frame -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- 2. Cargar AR.js (Motor de Realidad Aumentada) -->
+    <!-- Cargar AR.js con soporte para geolocalizaciÃ³n o variantes sin marcador -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   </head>
   <body style="margin: 0; overflow: hidden;">
 
-    <!-- Escena WebAR habilitada para usar la cámara web -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+    <!-- Interfaz superpuesta (HUD) para guiar al usuario en pantalla -->
+    <div id="hud" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 999; background: rgba(0, 85, 165, 0.9); color: white; padding: 10px 20px; border-radius: 8px; font-family: sans-serif; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+      <strong>Servicio de TomografÃ­a</strong><br>
+      <span id="instruction" style="font-size: 14px;">Apunta al piso y camina derecho 15 metros</span>
+    </div>
 
-      <!-- Marcador QR/Hiro (El patrón impreso en el ingreso) -->
-      <a-marker preset="hiro">
+    <!-- Escena AR interactiva -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
 
-        <!-- 1. Cartel del Servicio (Tomografía) -->
-        <a-plane position="0 1.5 0" rotation="0 0 0" width="2" height="0.8" color="#0055A5">
-          <a-text value="SERVICIO DE TOMOGRAFIA\nSiga las flechas" align="center" color="#FFFFFF" scale="0.8 0.8 0.8"></a-text>
+      <!-- Contenedor que aparecerÃ¡ flotando frente al usuario al avanzar -->
+      <a-entity id="tomografia-punto" position="0 0 -4">
+        
+        <!-- Cartel flotante automÃ¡tico -->
+        <a-plane position="0 1.5 0" rotation="0 0 0" width="2.2" height="0.9" color="#0055A5">
+          <a-text value="LLEGISTE A:\nTOMOGRAFIA\nConsultorio 12" align="center" color="#FFFFFF" position="0 0 0.1" scale="0.7 0.7 0.7"></a-text>
         </a-plane>
 
-        <!-- 2. Flecha 3D de Dirección 1 (Avanzar) -->
-        <a-entity position="0 0.2 -1" rotation="-90 0 0">
-          <a-cone radius-bottom="0.2" radius-top="0" height="0.5" color="#00E5FF"></a-cone>
-          <a-cylinder radius="0.08" height="0.6" position="0 -0.4 0" color="#0055A5"></a-cylinder>
-        </a-entity>
+        <!-- Indicador 3D animado -->
+        <a-cone radius-bottom="0.3" radius-top="0" height="0.6" color="#00E5FF" position="0 0.4 0" animation="property: position; to: 0 0.7 0; dir: alternate; dur: 1000; loop: true"></a-cone>
 
-        <!-- 3. Flecha 3D de Dirección 2 (Giro a la derecha) -->
-        <a-entity position="0.8 0.2 -2" rotation="-90 -45 0">
-          <a-cone radius-bottom="0.2" radius-top="0" height="0.5" color="#00E5FF"></a-cone>
-          <a-cylinder radius="0.08" height="0.6" position="0 -0.4 0" color="#0055A5"></a-cylinder>
-        </a-entity>
+      </a-entity>
 
-      </a-marker>
-
-      <!-- Entidad Cámara AR del Celular -->
+      <!-- CÃ¡mara del dispositivo con control de sensores -->
       <a-entity camera></a-entity>
-
+      
     </a-scene>
+
   </body>
 </html>
