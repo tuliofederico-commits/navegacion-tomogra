@@ -3,21 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>GPS Sanatorio - Posicionamiento AR Real</title>
-    <!-- Usamos A-Frame actualizado con soporte WebXR nativo -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <title>GPS Sanatorio - Realidad Aumentada</title>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
       body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
       
-      /* Pantalla de Selección de Destino */
+      /* Pantalla Inicial de Selección de Destino */
       #modal-seleccion {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 25, 50, 0.96); z-index: 10000;
+        background: rgba(0, 30, 60, 0.98); z-index: 10000;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         color: white; padding: 20px; box-sizing: border-box; text-align: center;
       }
       #contenedor-botones {
-        width: 100%; max-width: 360px; max-height: 60vh; overflow-y: auto; margin-top: 10px;
+        width: 100%; max-width: 360px; max-height: 65vh; overflow-y: auto; margin-top: 10px;
       }
       .btn-destino {
         background: #00E5FF; color: #002b49; border: none; padding: 12px 16px;
@@ -26,50 +26,68 @@
       }
       .btn-destino:active { background: #00b8d4; }
 
-      /* HUD de Posicionamiento en Vivo */
+      /* HUD Superior de Estado */
       #hud-nav {
-        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-        z-index: 999; background: rgba(0, 50, 100, 0.95); color: white;
+        position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+        z-index: 999; background: rgba(0, 50, 100, 0.92); color: white;
         padding: 12px 20px; border-radius: 14px; text-align: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 90%; max-width: 400px; display: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 90%; max-width: 380px; display: none;
       }
+
+      /* Control deslizante de avance en vivo (Para simular la caminata real con precisión de milímetros) */
+      #panel-deslizador {
+        position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
+        z-index: 999; background: rgba(0, 30, 60, 0.95); padding: 12px 20px;
+        border-radius: 14px; width: 90%; max-width: 380px; text-align: center; display: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); color: white;
+      }
+      input[type=range] { width: 100%; accent-color: #00E5FF; cursor: pointer; }
     </style>
   </head>
   <body>
 
     <!-- 1. MODAL DE SELECCIÓN -->
     <div id="modal-seleccion">
-      <h2>Sanatorio - GPS de Interiores</h2>
-      <p style="color: #00E5FF; margin-top: 0;">Selecciona el servicio al que deseas ir:</p>
+      <h2>Sanatorio - Guía AR</h2>
+      <p style="color: #00E5FF; margin-top: 0;">Selecciona el servicio que buscas:</p>
       <div id="contenedor-botones">Cargando servicios...</div>
     </div>
 
-    <!-- 2. HUD DE POSICIONAMIENTO -->
+    <!-- 2. HUD SUPERIOR -->
     <div id="hud-nav">
-      <strong id="txt-destino-titulo" style="font-size: 15px; color: #00E5FF;">Posicionamiento Activo</strong><br>
-      <span id="txt-distancia" style="font-size: 14px;">Iniciando sensores de posición...</span>
+      <strong id="txt-destino-titulo" style="font-size: 15px; color: #00E5FF;">Guía Activa</strong><br>
+      <span id="txt-distancia" style="font-size: 14px;">Desliza para avanzar por el pasillo</span>
     </div>
 
-    <!-- 3. ESCENA 3D CON SOPORTE WEBXR (POSICIONAMIENTO REAL) -->
-    <a-scene webxr="requiredFeatures: local-floor, hit-test;" vr-mode-ui="enabled: false">
-      <a-light type="ambient" color="#FFF" intensity="1.2"></a-light>
-      
-      <!-- Contenedor dinámico de la ruta en el piso -->
-      <a-entity id="ruta-espacial" position="0 0 0">
-        <a-entity id="linea-piso" rotation="-90 0 0" position="0 0.01 0" visible="false"></a-entity>
-        <a-entity id="cartel-destino" position="0 1.8 0" visible="false"></a-entity>
-      </a-entity>
+    <!-- 3. PANEL INFERIOR DE AVANCE FLUIDO -->
+    <div id="panel-deslizador">
+      <span style="font-size: 12px; color: #00E5FF;">Simulador de Pasillo (Desliza al caminar)</span>
+      <input type="range" id="slider-metros" min="0" max="50" step="0.5" value="0" oninput="actualizarAvance(this.value)">
+      <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; color: #aaa;">
+        <span>Ingreso (0m)</span>
+        <span>Mitad (25m)</span>
+        <span>Fin (50m)</span>
+      </div>
+    </div>
 
-      <!-- Cámara con seguimiento de posición real en el espacio -->
-      <a-entity id="camara-ar" camera look-controls position="0 1.6 0" seguimiento-posicion></a-entity>
+    <!-- 4. ESCENA AR.JS (Cámara en Vivo) -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;" vr-mode-ui="enabled: false">
+      
+      <!-- Línea dinámica proyectada en el piso -->
+      <a-entity id="linea-piso" rotation="-90 0 0" position="0 0.01 0" visible="false"></a-entity>
+
+      <!-- Cartel flotante de destino -->
+      <a-entity id="cartel-destino" position="0 1.8 0" visible="false"></a-entity>
+
+      <!-- Cámara -->
+      <a-entity camera></a-entity>
     </a-scene>
 
     <script>
       let datosServicios = [];
       let servicioActual = null;
-      let sistemaIniciado = false;
 
-      // Cargar base de datos JSON
+      // Cargar base de datos desde servicios.json
       fetch('servicios.json')
         .then(res => res.json())
         .then(data => {
@@ -81,30 +99,34 @@
             btn.className = 'btn-destino';
             let lateral = s.posicion_lateral !== 'centro' ? ` (${s.posicion_lateral})` : '';
             btn.innerHTML = `${s.icono} <strong>${s.nombre}</strong>${lateral} - ${s.distancia_m}m`;
-            btn.onclick = () => configurarDestino(s);
+            btn.onclick = () => iniciarGuia(s);
             cont.appendChild(btn);
           });
+        })
+        .catch(err => {
+          document.getElementById('contenedor-botones').innerText = "Error cargando servicios.json.";
         });
 
-      function configurarDestino(servicio) {
+      function iniciarGuia(servicio) {
         servicioActual = servicio;
 
-        // Ocultar modal y mostrar HUD
+        // Ocultar modal, activar cámara y mostrar paneles de navegación
         document.getElementById('modal-seleccion').style.display = 'none';
         document.getElementById('hud-nav').style.display = 'block';
+        document.getElementById('panel-deslizador').style.display = 'block';
         document.getElementById('txt-destino-titulo').innerText = "Ruta: " + servicio.nombre.toUpperCase();
 
         let metaX = servicio.offset_x_m || 0;
         let metaZ = -servicio.distancia_m;
 
-        // 1. Dibujar línea en el piso orientada al destino
+        // 1. Dibujar línea fija en el piso hasta el servicio
         let lineaPiso = document.getElementById('linea-piso');
         lineaPiso.setAttribute('visible', true);
         lineaPiso.innerHTML = `
-          <a-plane width="0.4" height="${servicio.distancia_m}" color="${servicio.color}" opacity="0.9" position="${metaX/2} ${servicio.distancia_m/2} 0"></a-plane>
+          <a-plane width="0.4" height="${servicio.distancia_m}" color="${servicio.color}" opacity="0.85" position="${metaX/2} ${servicio.distancia_m/2} 0"></a-plane>
         `;
 
-        // 2. Colocar cartel flotante en las coordenadas exactas del servicio
+        // 2. Colocar cartel flotante en el destino exacto
         let cartel = document.getElementById('cartel-destino');
         cartel.setAttribute('visible', true);
         cartel.setAttribute('position', `${metaX} 1.8 ${metaZ}`);
@@ -115,35 +137,24 @@
           <a-cone radius-bottom="0.3" radius-top="0" height="0.6" color="#00E5FF" position="0 0.8 0" animation="property: position; to: 0 1.2 0; dir: alternate; dur: 800; loop: true"></a-cone>
         `;
 
-        sistemaIniciado = true;
+        document.getElementById('slider-metros').value = 0;
+        actualizarAvance(0);
       }
 
-      // Componente de A-Frame para rastrear la posición real del celular en metros (X, Y, Z)
-      AFRAME.registerComponent('seguimiento-posicion', {
-        tick: function () {
-          if (!sistemaIniciado || !servicioActual) return;
+      function actualizarAvance(metrosRecorridos) {
+        if (!servicioActual) return;
+        let recorrido = parseFloat(metrosRecorridos);
+        let restante = servicioActual.distancia_m - recorrido;
+        let txt = document.getElementById('txt-distancia');
 
-          // Obtener la posición física actual de la cámara en el espacio 3D del navegador
-          let posCamara = this.el.object3D.position;
-          
-          // La distancia recorrida a lo largo del pasillo corresponde al desplazamiento en el eje Z
-          let distanciaRecorridaZ = Math.abs(posCamara.z);
-          let distanciaRestante = servicioActual.distancia_m - distanciaRecorridaZ;
-
-          let txt = document.getElementById('txt-distancia');
-
-          if (distanciaRestante <= 0.5) {
-            txt.innerHTML = "¡Has llegado a <strong>" + servicioActual.nombre + "</strong>!";
-            txt.style.color = "#00E5FF";
-          } else if (distanciaRestante < 0) {
-            txt.innerHTML = "Has pasado el destino ligeramente.";
-            txt.style.color = "#FFC107";
-          } else {
-            txt.innerHTML = "Faltan <strong>" + distanciaRestante.toFixed(1) + " metros</strong>";
-            txt.style.color = "#FFF";
-          }
+        if (restante <= 0) {
+          txt.innerHTML = "¡Has llegado a <strong>" + servicioActual.nombre + "</strong>!";
+          txt.style.color = "#00E5FF";
+        } else {
+          txt.innerHTML = "Faltan aprox. <strong>" + restante.toFixed(1) + " metros</strong>";
+          txt.style.color = "#FFF";
         }
-      });
+      }
     </script>
   </body>
 </html>
