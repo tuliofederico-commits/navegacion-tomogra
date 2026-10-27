@@ -1,368 +1,302 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Prueba AR - Navegación Sanatorio</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#101820">
+  <title>Diagnóstico WebXR — Navegación Sanatorio</title>
   <style>
-    html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-      background: #111;
-    }
-
-    #info {
-      position: fixed;
-      top: 15px;
-      left: 15px;
-      right: 15px;
-      z-index: 10;
-      padding: 14px 16px;
-      border-radius: 12px;
-      background: rgba(0,0,0,.75);
-      color: white;
-      font-size: 15px;
-      line-height: 1.35;
-      text-align: center;
-    }
-
-    #estado {
-      margin-top: 6px;
-      font-weight: bold;
-    }
-
-    #ayuda {
-      position: fixed;
-      bottom: 20px;
-      left: 15px;
-      right: 15px;
-      z-index: 10;
-      padding: 12px;
-      border-radius: 10px;
-      background: rgba(0,0,0,.65);
-      color: white;
-      font-size: 14px;
-      text-align: center;
-    }
-
-    #reset {
-      display: none;
-      position: fixed;
-      right: 15px;
-      bottom: 80px;
-      z-index: 20;
-      border: 0;
-      border-radius: 10px;
-      padding: 12px 16px;
-      font-size: 15px;
-      font-weight: bold;
-    }
+    :root { color-scheme: dark; --bg:#101820; --panel:rgba(12,20,28,.94); --line:#334553; --green:#45ef91; --yellow:#ffd166; --red:#ff6b6b; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; width:100%; height:100%; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:#f4f7fa; }
+    #stage { position:fixed; inset:0; }
+    #stage canvas { width:100%; height:100%; display:block; }
+    #panel { position:fixed; z-index:5; left:10px; right:10px; top:10px; max-height:48vh; overflow:auto; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--panel); box-shadow:0 8px 28px #0007; }
+    h1 { font-size:17px; margin:0 0 8px; }
+    p { margin:5px 0 10px; font-size:13px; line-height:1.4; color:#d6e0e7; }
+    #status { font-size:13px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .line { margin:4px 0; }
+    .ok { color:var(--green); } .warn { color:var(--yellow); } .err { color:var(--red); }
+    .buttons { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    button { border:0; border-radius:10px; padding:12px 14px; font-size:14px; font-weight:700; color:#07140d; background:var(--green); }
+    button.secondary { color:#f4f7fa; background:#344653; }
+    button:disabled { opacity:.45; }
+    #hint { position:fixed; z-index:4; left:12px; right:12px; bottom:18px; padding:10px 12px; border-radius:10px; background:#0b1119d9; text-align:center; font-size:13px; pointer-events:none; }
+    #overlayRoot { position:fixed; inset:0; pointer-events:none; }
+    @media (min-width:700px) { #panel { max-width:520px; } }
   </style>
 </head>
-
 <body>
+  <div id="stage"></div>
+  <div id="overlayRoot">
+    <section id="panel">
+      <h1>Diagnóstico WebXR — Navegación del sanatorio</h1>
+      <p>Esta prueba comprueba WebXR, <code>hit-test</code> y la detección de superficies. Para probarla, usá Chrome en Android y HTTPS.</p>
+      <div id="status" aria-live="polite">Preparando diagnóstico…</div>
+      <div class="buttons">
+        <button id="checkBtn">Comprobar compatibilidad</button>
+        <button id="startBtn" disabled>Iniciar prueba AR</button>
+        <button id="stopBtn" class="secondary" disabled>Salir de AR</button>
+      </div>
+      <p id="instructions">Al iniciar AR, mové lentamente el teléfono apuntando al piso. Cuando aparezca el aro verde, tocá la pantalla para colocar una flecha.</p>
+    </section>
+  </div>
+  <div id="hint">Esperando comprobación de compatibilidad…</div>
 
-<div id="info">
-  <strong>PRUEBA AR — NAVEGACIÓN</strong>
-  <div id="estado">Preparando realidad aumentada...</div>
-</div>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
-<div id="ayuda">
-  Tocá el botón de AR. Luego apuntá al piso y tocá una superficie para colocar la flecha.
-</div>
+    const statusEl = document.getElementById('status');
+    const hintEl = document.getElementById('hint');
+    const checkBtn = document.getElementById('checkBtn');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const panel = document.getElementById('panel');
+    const overlayRoot = document.getElementById('overlayRoot');
 
-<button id="reset">Volver a colocar</button>
+    let renderer, scene, camera, reticle, arrowGroup;
+    let xrSession = null;
+    let hitTestSource = null;
+    let hitTestSourceRequested = false;
+    let referenceSpace = null;
+    let viewerSpace = null;
+    let surfaceDetected = false;
+    let lastHitMatrix = null;
+    let hitCount = 0;
+    let selected = false;
+    let statusLines = [];
 
-<script type="module">
-import * as THREE from
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-
-import { ARButton } from
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/ARButton.js';
-
-let camera, scene, renderer;
-let controller;
-let reticle;
-let hitTestSource = null;
-let hitTestSourceRequested = false;
-let flecha = null;
-
-const estado = document.getElementById('estado');
-const ayuda = document.getElementById('ayuda');
-const reset = document.getElementById('reset');
-
-/* -------------------------------------------------------
-   ESCENA
-------------------------------------------------------- */
-
-init();
-animate();
-
-function init() {
-
-  scene = new THREE.Scene();
-
-  camera = new THREE.PerspectiveCamera(
-    70,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    20
-  );
-
-  renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-  });
-
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true;
-
-  document.body.appendChild(renderer.domElement);
-
-  /* Luz */
-  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 2);
-  scene.add(light);
-
-  /* Retícula: indica dónde se detectó el piso */
-  reticle = new THREE.Mesh(
-    new THREE.RingGeometry(0.08, 0.12, 32).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({
-      color: 0x00ff88,
-      transparent: true,
-      opacity: 0.8
-    })
-  );
-
-  reticle.matrixAutoUpdate = false;
-  reticle.visible = false;
-  scene.add(reticle);
-
-  /* Controlador de toque */
-  controller = renderer.xr.getController(0);
-
-  controller.addEventListener('select', colocarFlecha);
-
-  scene.add(controller);
-
-  /* Botón AR */
-  const arButton = ARButton.createButton(renderer, {
-    requiredFeatures: ['hit-test'],
-    optionalFeatures: ['dom-overlay'],
-    domOverlay: {
-      root: document.body
+    function log(message, kind='') {
+      const stamp = new Date().toLocaleTimeString();
+      statusLines.push({text:`[${stamp}] ${message}`, kind});
+      if (statusLines.length > 18) statusLines.shift();
+      statusEl.innerHTML = statusLines.map(x => `<div class="line ${x.kind}">${escapeHtml(x.text)}</div>`).join('');
     }
-  });
-
-  arButton.style.bottom = '20px';
-  arButton.style.left = '50%';
-  arButton.style.transform = 'translateX(-50%)';
-  arButton.style.width = '220px';
-  arButton.style.height = '55px';
-  arButton.style.fontSize = '18px';
-  arButton.style.fontWeight = 'bold';
-  arButton.style.borderRadius = '12px';
-
-  document.body.appendChild(arButton);
-
-  renderer.xr.addEventListener('sessionstart', () => {
-    estado.textContent = 'AR iniciada. Buscando el piso...';
-    ayuda.textContent =
-      'Mové lentamente el teléfono y apuntá hacia el piso. Cuando aparezca el círculo verde, tocá la pantalla.';
-  });
-
-  renderer.xr.addEventListener('sessionend', () => {
-    estado.textContent = 'AR finalizada.';
-    ayuda.textContent = 'Podés volver a iniciar la prueba.';
-    hitTestSourceRequested = false;
-    hitTestSource = null;
-  });
-
-  reset.addEventListener('click', () => {
-    if (flecha) {
-      scene.remove(flecha);
-      flecha = null;
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function hint(text) { hintEl.textContent = text; }
+    function errorText(e) {
+      return `${e?.name || 'Error'}: ${e?.message || String(e)}`;
     }
 
-    reset.style.display = 'none';
-
-    estado.textContent = 'Buscando nuevamente el piso...';
-    ayuda.textContent =
-      'Apuntá al piso. Cuando aparezca el círculo verde, tocá la pantalla.';
-  });
-
-  window.addEventListener('resize', onWindowResize);
-}
-
-/* -------------------------------------------------------
-   CREAR FLECHA
-------------------------------------------------------- */
-
-function crearFlecha() {
-
-  const grupo = new THREE.Group();
-
-  /*
-    Flecha simple orientada hacia adelante.
-    Largo aproximado: 0,70 m.
-  */
-
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x00ff66,
-    side: THREE.DoubleSide
-  });
-
-  const cuerpo = new THREE.Mesh(
-    new THREE.BoxGeometry(0.12, 0.025, 0.48),
-    material
-  );
-
-  cuerpo.position.z = -0.12;
-
-  const punta = new THREE.Mesh(
-    new THREE.ConeGeometry(0.16, 0.28, 4),
-    material
-  );
-
-  punta.rotation.x = Math.PI / 2;
-  punta.position.z = -0.42;
-
-  grupo.add(cuerpo);
-  grupo.add(punta);
-
-  return grupo;
-}
-
-/* -------------------------------------------------------
-   COLOCAR FLECHA EN EL PISO
-------------------------------------------------------- */
-
-function colocarFlecha() {
-
-  if (!reticle.visible) return;
-
-  if (flecha) {
-    scene.remove(flecha);
-  }
-
-  flecha = crearFlecha();
-
-  /*
-    Copiamos la posición y orientación espacial
-    detectadas por WebXR.
-  */
-
-  flecha.position.setFromMatrixPosition(reticle.matrix);
-  flecha.quaternion.setFromRotationMatrix(reticle.matrix);
-
-  scene.add(flecha);
-
-  estado.textContent =
-    'Flecha colocada. Ahora caminá unos metros.';
-
-  ayuda.textContent =
-    'IMPORTANTE: no apuntes nuevamente al lugar de la flecha. Caminá y comprobá si permanece fija en el ambiente.';
-
-  reset.style.display = 'block';
-}
-
-/* -------------------------------------------------------
-   HIT TEST
-------------------------------------------------------- */
-
-function render(timestamp, frame) {
-
-  if (frame) {
-
-    const referenceSpace =
-      renderer.xr.getReferenceSpace();
-
-    const session =
-      renderer.xr.getSession();
-
-    if (!hitTestSourceRequested) {
-
-      session.requestReferenceSpace('viewer')
-        .then((referenceSpace) => {
-
-          session.requestHitTestSource({
-            space: referenceSpace
-          }).then((source) => {
-            hitTestSource = source;
-          });
-
-        });
-
-      session.addEventListener(
-        'end',
-        () => {
-          hitTestSourceRequested = false;
-          hitTestSource = null;
+    async function checkSupport() {
+      startBtn.disabled = true;
+      log('Comprobando navegador y WebXR…');
+      if (!window.isSecureContext) {
+        log('La página no está en un contexto seguro. Usá la URL HTTPS de GitHub Pages.', 'err');
+        hint('Se necesita HTTPS.');
+        return;
+      }
+      if (!('xr' in navigator)) {
+        log('navigator.xr no existe: este navegador no expone WebXR.', 'err');
+        log('Probá Chrome actualizado en Android compatible con ARCore. Que la cámara abra no significa que WebXR esté disponible.', 'warn');
+        hint('WebXR no está disponible en este navegador.');
+        return;
+      }
+      log('navigator.xr está disponible.', 'ok');
+      try {
+        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+        log(`immersive-ar: ${supported ? 'compatible' : 'NO compatible'}.`, supported ? 'ok' : 'err');
+        if (!supported) {
+          log('El navegador/dispositivo no admite sesiones immersive-ar en este momento.', 'err');
+          hint('Este dispositivo/navegador no informa soporte para immersive-ar.');
+          return;
         }
-      );
-
-      hitTestSourceRequested = true;
-    }
-
-    if (hitTestSource) {
-
-      const hitTestResults =
-        frame.getHitTestResults(hitTestSource);
-
-      if (hitTestResults.length > 0) {
-
-        const hit = hitTestResults[0];
-
-        const pose =
-          hit.getPose(referenceSpace);
-
-        reticle.visible = true;
-
-        reticle.matrix.fromArray(
-          pose.transform.matrix
-        );
-
-        if (!flecha) {
-          estado.textContent =
-            'Piso detectado. Tocá la pantalla para colocar la flecha.';
-        }
-
-      } else {
-
-        reticle.visible = false;
-
-        if (!flecha) {
-          estado.textContent =
-            'Buscando una superficie...';
-        }
+        log('Soporte básico confirmado. Se probará solicitar hit-test al iniciar AR.', 'ok');
+        startBtn.disabled = false;
+        hint('Compatible en principio. Tocá “Iniciar prueba AR”.');
+      } catch (e) {
+        log(`Falló isSessionSupported: ${errorText(e)}`, 'err');
+        hint('No se pudo comprobar compatibilidad; revisá los detalles.');
       }
     }
-  }
 
-  renderer.render(scene, camera);
-}
+    function initThree() {
+      if (renderer) return;
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 30);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      renderer.xr.setReferenceSpaceType('local-floor');
+      document.getElementById('stage').appendChild(renderer.domElement);
 
-function animate() {
-  renderer.setAnimationLoop(render);
-}
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x647080, 2.0));
+      const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+      dir.position.set(1, 3, 2);
+      scene.add(dir);
 
-function onWindowResize() {
+      const ring = new THREE.RingGeometry(0.09, 0.12, 32);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x45ef91, side: THREE.DoubleSide });
+      reticle = new THREE.Mesh(ring, ringMat);
+      reticle.rotation.x = -Math.PI / 2;
+      reticle.matrixAutoUpdate = false;
+      reticle.visible = false;
+      scene.add(reticle);
 
-  camera.aspect =
-    window.innerWidth / window.innerHeight;
+      arrowGroup = new THREE.Group();
+      const green = new THREE.MeshBasicMaterial({ color: 0x45ef91, side: THREE.DoubleSide });
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.012, 0.24), green);
+      shaft.position.set(0, 0.015, 0.02);
+      arrowGroup.add(shaft);
+      const headShape = new THREE.Shape();
+      headShape.moveTo(0, -0.11); headShape.lineTo(-0.11, 0.02); headShape.lineTo(-0.045, 0.02);
+      headShape.lineTo(-0.045, 0.10); headShape.lineTo(0.045, 0.10); headShape.lineTo(0.045, 0.02);
+      headShape.lineTo(0.11, 0.02); headShape.closePath();
+      const head = new THREE.Mesh(new THREE.ShapeGeometry(headShape), green);
+      head.rotation.x = -Math.PI / 2;
+      head.position.y = 0.02;
+      arrowGroup.add(head);
+      arrowGroup.visible = false;
+      scene.add(arrowGroup);
 
-  camera.updateProjectionMatrix();
+      renderer.setAnimationLoop(onXRFrame);
+      window.addEventListener('resize', () => {
+        if (!camera || !renderer) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
 
-  renderer.setSize(
-    window.innerWidth,
-    window.innerHeight
-  );
-}
-</script>
+    async function startAR() {
+      startBtn.disabled = true;
+      statusLines = [];
+      log('Solicitando sesión immersive-ar…');
+      try {
+        if (!navigator.xr) throw new Error('navigator.xr no está disponible.');
+        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+        if (!supported) throw new Error('immersive-ar no es compatible en este dispositivo/navegador.');
 
+        initThree();
+        let session;
+        try {
+          session = await navigator.xr.requestSession('immersive-ar', {
+            requiredFeatures: ['hit-test'],
+            optionalFeatures: ['local-floor', 'dom-overlay'],
+            domOverlay: { root: overlayRoot }
+          });
+        } catch (e1) {
+          log(`Solicitud con dom-overlay falló: ${errorText(e1)}`, 'warn');
+          log('Reintentando sin dom-overlay…', 'warn');
+          session = await navigator.xr.requestSession('immersive-ar', {
+            requiredFeatures: ['hit-test'],
+            optionalFeatures: ['local-floor']
+          });
+        }
+
+        xrSession = session;
+        renderer.xr.setSession(session);
+        stopBtn.disabled = false;
+        checkBtn.disabled = true;
+        log('Sesión AR iniciada.', 'ok');
+
+        session.addEventListener('end', onSessionEnd);
+        session.addEventListener('select', onSelect);
+
+        try {
+          referenceSpace = await session.requestReferenceSpace('local-floor');
+          log('Espacio de referencia local-floor disponible.', 'ok');
+        } catch (e) {
+          referenceSpace = await session.requestReferenceSpace('local');
+          log('local-floor no disponible; usando local. La colocación puede no coincidir con el piso.', 'warn');
+        }
+
+        try {
+          viewerSpace = await session.requestReferenceSpace('viewer');
+          hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+          hitTestSourceRequested = true;
+          log('Solicitud hit-test aceptada. Apuntá hacia el piso y mové el teléfono lentamente.', 'ok');
+          hint('Buscando una superficie… mové lentamente el teléfono hacia el piso.');
+        } catch (e) {
+          log(`No se pudo crear hit-test: ${errorText(e)}`, 'err');
+          log('La sesión pudo abrirse, pero no puede buscar superficies con esta solicitud.', 'err');
+          hint('Falló hit-test. Leé el error en el panel.');
+        }
+      } catch (e) {
+        log(`ERROR al iniciar AR: ${errorText(e)}`, 'err');
+        hint('No se pudo iniciar la prueba AR. Revisá el error.');
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }
+
+    function onXRFrame(time, frame) {
+      if (!renderer || !scene || !camera) return;
+      if (frame && xrSession && referenceSpace && hitTestSource) {
+        try {
+          const results = frame.getHitTestResults(hitTestSource);
+          if (results.length > 0) {
+            const pose = results[0].getPose(referenceSpace);
+            if (pose) {
+              surfaceDetected = true;
+              hitCount++;
+              lastHitMatrix = new THREE.Matrix4().fromArray(pose.transform.matrix);
+              reticle.matrix.copy(lastHitMatrix);
+              reticle.matrix.decompose(reticle.position, reticle.quaternion, reticle.scale);
+              reticle.visible = !selected;
+              if (hitCount === 1) {
+                log('¡Superficie detectada! El aro verde indica dónde se puede colocar la flecha.', 'ok');
+                hint('¡Piso/superficie detectada! Tocá la pantalla para colocar la flecha.');
+              } else if (hitCount % 120 === 0) {
+                log(`Superficie detectada continuamente (${hitCount} resultados).`, 'ok');
+              }
+            }
+          } else {
+            if (!selected) reticle.visible = false;
+            if (!surfaceDetected) hint('Todavía no detecta superficie: mové lentamente el teléfono, apuntando al piso.');
+          }
+        } catch (e) {
+          log(`Error durante hit-test: ${errorText(e)}`, 'err');
+        }
+      }
+      renderer.render(scene, camera);
+    }
+
+    function onSelect() {
+      if (!lastHitMatrix || selected) {
+        log('Toque recibido, pero todavía no hay una superficie válida. Esperá a que aparezca el aro verde.', 'warn');
+        return;
+      }
+      arrowGroup.position.setFromMatrixPosition(lastHitMatrix);
+      arrowGroup.quaternion.setFromRotationMatrix(lastHitMatrix);
+      arrowGroup.visible = true;
+      selected = true;
+      reticle.visible = false;
+      log('Flecha colocada. Caminá unos pasos y comprobá si queda fija en el ambiente.', 'ok');
+      hint('Flecha colocada. Caminá unos pasos: debería permanecer en el lugar.');
+    }
+
+    async function stopAR() {
+      try { if (xrSession) await xrSession.end(); }
+      catch (e) { log(`Error al finalizar sesión: ${errorText(e)}`, 'err'); }
+    }
+
+    function onSessionEnd() {
+      if (hitTestSource) { try { hitTestSource.cancel(); } catch (_) {} }
+      xrSession = null; hitTestSource = null; viewerSpace = null; referenceSpace = null;
+      hitTestSourceRequested = false; surfaceDetected = false; lastHitMatrix = null;
+      if (reticle) reticle.visible = false;
+      if (arrowGroup) arrowGroup.visible = false;
+      selected = false; hitCount = 0;
+      startBtn.disabled = false; stopBtn.disabled = true; checkBtn.disabled = false;
+      log('Sesión AR finalizada.', 'warn');
+      hint('Prueba finalizada. Podés volver a iniciar AR.');
+    }
+
+    checkBtn.addEventListener('click', checkSupport);
+    startBtn.addEventListener('click', startAR);
+    stopBtn.addEventListener('click', stopAR);
+
+    // A tap in the overlay is intentionally not used to place the arrow:
+    // WebXR's "select" event is the reliable input for immersive AR.
+    window.addEventListener('error', e => log(`Error JavaScript: ${e.message}`, 'err'));
+    window.addEventListener('unhandledrejection', e => log(`Promesa rechazada: ${errorText(e.reason)}`, 'err'));
+
+    log('Página cargada. Tocá “Comprobar compatibilidad”.');
+    checkSupport();
+  </script>
 </body>
 </html>
-
