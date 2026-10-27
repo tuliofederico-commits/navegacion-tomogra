@@ -75,68 +75,168 @@
       // Cargar base de datos dinámicamente
       fetch('servicios.json')
         .then(res => res.json())
+        .then(data => {<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>GPS Sanatorio - Realidad Aumentada en Piso</title>
+    <!-- A-Frame y componentes AR -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-hit-test@IndexOf/dist/aframe-hit-test.min.js"></script>
+    <style>
+      body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
+      
+      /* Pantalla Modal de Selección Inicial */
+      #modal-seleccion {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 25, 50, 0.96); z-index: 10000;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        color: white; padding: 20px; box-sizing: border-box; text-align: center;
+      }
+      #contenedor-botones {
+        width: 100%; max-width: 360px; max-height: 60vh; overflow-y: auto; margin-top: 10px;
+      }
+      .btn-destino {
+        background: #00E5FF; color: #002b49; border: none; padding: 12px 16px;
+        margin: 6px 0; border-radius: 10px; font-weight: bold; font-size: 15px;
+        width: 100%; cursor: pointer; text-align: left; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      }
+      .btn-destino:active { background: #00b8d4; }
+
+      /* Instrucción flotante de AR */
+      #instruccion-ar {
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 999; background: rgba(0, 50, 100, 0.9); color: white;
+        padding: 10px 18px; border-radius: 12px; text-align: center; font-size: 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; width: 90%; max-width: 400px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- 1. MODAL DE SELECCIÓN DE DESTINO -->
+    <div id="modal-seleccion">
+      <h2>Sanatorio - GPS de Interiores</h2>
+      <p style="color: #00E5FF; margin-top: 0;">Selecciona el servicio al que deseas ir:</p>
+      <div id="contenedor-botones">Cargando servicios...</div>
+    </div>
+
+    <!-- 2. INSTRUCCIÓN EN VIVO -->
+    <div id="instruccion-ar">
+      <span id="txt-estado-ar">Apunta al piso y toca la pantalla para fijar la ruta</span><br>
+      <strong id="txt-distancia-real" style="color: #00E5FF; font-size: 15px;">Buscando superficie...</strong>
+    </div>
+
+    <!-- 3. ESCENA WEBAR CON SOPORTE DE PISO (WEBXR) -->
+    <a-scene webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay; overlayElement: #instruccion-ar;" vr-mode-ui="enabled: false">
+      
+      <!-- Retícula que detecta el piso real -->
+      <a-entity id="reticula-piso" raycaster="objects: [data-raycastable]" cursor="fuse: false; rayOrigin: mouse;">
+        <a-ring radius-inner="0.15" radius-outer="0.2" rotation="-90 0 0" color="#00E5FF"></a-ring>
+      </a-entity>
+
+      <!-- Contenedor anclado donde el usuario toca el piso -->
+      <a-entity id="punto-anclaje" visible="false">
+        <!-- Línea proyectada en el piso -->
+        <a-entity id="linea-piso" rotation="-90 0 0" position="0 0.01 0"></a-entity>
+        <!-- Cartel flotante del destino -->
+        <a-entity id="cartel-destino" position="0 1.8 0"></a-entity>
+      </a-entity>
+
+      <!-- Cámara AR -->
+      <a-entity camera position="0 1.6 0"></a-entity>
+    </a-scene>
+
+    <script>
+      let servicioSeleccionado = null;
+      let anclajeFijado = false;
+      let datosServicios = [];
+
+      // Cargar base de datos JSON
+      fetch('servicios.json')
+        .then(res => res.json())
         .then(data => {
           datosServicios = data.servicios;
-          renderizarBotones();
-        })
-        .catch(err => {
-          console.error("Error al cargar servicios.json", err);
-          document.getElementById('contenedor-botones').innerText = "Error cargando la lista de servicios.";
+          let cont = document.getElementById('contenedor-botones');
+          cont.innerHTML = "";
+          datosServicios.forEach(s => {
+            let btn = document.createElement('button');
+            btn.className = 'btn-destino';
+            btn.innerHTML = `${s.icono} ${s.nombre} (${s.distancia_m}m)`;
+            btn.onclick = () => elegirDestino(s);
+            cont.appendChild(btn);
+          });
         });
 
-      function renderizarBotones() {
-        let cont = document.getElementById('contenedor-botones');
-        cont.innerHTML = "";
-        datosServicios.forEach(s => {
-          let btn = document.createElement('button');
-          btn.className = 'btn-destino';
-          let ubicacionText = s.posicion_lateral !== 'centro' ? ` (${s.posicion_lateral})` : '';
-          btn.innerHTML = `${s.icono} ${s.nombre} - ${s.distancia_m}m${ubicacionText}`;
-          btn.onclick = () => iniciarNavegacion(s);
-          cont.appendChild(btn);
-        });
+      function elegirDestino(servicio) {
+        servicioSeleccionado = servicio;
+        document.getElementById('modal-seleccion').style.display = 'none';
+        document.getElementById('instruccion-ar').style.display = 'block';
       }
 
-      function iniciarNavegacion(servicio) {
-        metaDistancia = servicio.distancia_m;
-        metaX = servicio.offset_x_m;
+      // Detectar toque en la pantalla para fijar el origen (0,0) sobre el piso detectado
+      window.addEventListener('click', (e) => {
+        if (!servicioSeleccionado || anclajeFijado) return;
 
-        document.getElementById('modal-seleccion').style.display = 'none';
-        document.getElementById('hud-nav').style.display = 'block';
-        document.getElementById('txt-destino-titulo').innerText = "Ruta: " + servicio.nombre.toUpperCase();
+        let reticula = document.getElementById('reticula-piso');
+        let anclaje = document.getElementById('punto-anclaje');
 
-        // Línea trazada en el suelo
-        let contenedorLinea = document.getElementById('contenedor-linea-piso');
-        contenedorLinea.innerHTML = `
-          <a-plane width="0.4" height="${metaDistancia}" color="${servicio.color}" opacity="0.85" position="${metaX/2} ${-metaDistancia/2} 0"></a-plane>
+        // Posicionar el anclaje exactamente donde la cámara detectó el piso real
+        anclaje.setAttribute('position', reticula.getAttribute('position'));
+        anclaje.setAttribute('visible', true);
+        anclajeFijado = true;
+
+        reticula.setAttribute('visible', false); // Ocultar retícula una vez fijado
+        document.getElementById('txt-estado-ar').innerText = "Ruta activa hacia: " + servicioSeleccionado.nombre.toUpperCase();
+
+        construirRutaEnPiso(servicioSeleccionado);
+      });
+
+      function construirRutaEnPiso(s) {
+        let metaX = s.offset_x_m || 0;
+        let metaZ = -s.distancia_m; // Profundidad en metros a lo largo del pasillo
+
+        // 1. Dibujar la línea sobre el piso real
+        let lineaPiso = document.getElementById('linea-piso');
+        lineaPiso.innerHTML = `
+          <a-plane width="0.4" height="${s.distancia_m}" color="${s.color}" opacity="0.9" position="${metaX/2} ${s.distancia_m/2} 0"></a-plane>
         `;
 
-        // Cartel 3D de llegada
-        let contenedorCartel = document.getElementById('contenedor-cartel-destino');
-        contenedorCartel.setAttribute('position', `${metaX} 1.8 ${-metaDistancia}`);
-        contenedorCartel.innerHTML = `
-          <a-plane width="2.4" height="0.9" color="${servicio.color}">
-            <a-text value="LLEGADA A:\n${servicio.nombre.toUpperCase()}" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
+        // 2. Colocar el cartel flotante en el destino exacto
+        let cartel = document.getElementById('cartel-destino');
+        cartel.setAttribute('position', `${metaX} 1.8 ${metaZ}`);
+        cartel.innerHTML = `
+          <a-plane width="2.4" height="0.9" color="${s.color}">
+            <a-text value="LLEGADA A:\n${s.nombre.toUpperCase()}" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
           </a-plane>
           <a-cone radius-bottom="0.25" radius-top="0" height="0.5" color="#00E5FF" position="0 0.7 0" animation="property: position; to: 0 1 0; dir: alternate; dur: 800; loop: true"></a-cone>
         `;
-
-        actualizarHUD();
       }
 
-      function mover(cuantos) {
-        distanciaActual = Math.min(50, Math.max(0, distanciaActual + cuantos));
-        actualizarHUD();
-      }
+      // Seguimiento en tiempo real de la distancia conforme el usuario camina
+      AFRAME.registerComponent('seguimiento-caminata', {
+        tick: function () {
+          if (!anclajeFijado || !servicioSeleccionado) return;
 
-      function actualizarHUD() {
-        let resta = (metaDistancia - distanciaActual).toFixed(1);
-        if (resta <= 0) {
-          document.getElementById('txt-distancia').innerText = "¡Has llegado a tu destino!";
-        } else {
-          document.getElementById('txt-distancia').innerText = "Faltan " + resta + " metros para llegar";
+          let camaraPos = document.querySelector('[camera]').getAttribute('position');
+          let anclajePos = document.getElementById('punto-anclaje').getAttribute('position');
+
+          // Calcular distancia euclidiana real entre la posición actual del celular y el destino
+          let distanciaRecorridaZ = Math.abs(camaraPos.z - anclajePos.z);
+          let distanciaRestante = servicioSeleccionado.distancia_m - distanciaRecorridaZ;
+
+          let txtDist = document.getElementById('txt-distancia-real');
+          if (distanciaRestante <= 0.5) {
+            txtDist.innerText = "¡Has llegado a " + servicioSeleccionado.nombre + "!";
+          } else {
+            txtDist.innerText = "Faltan " + distanciaRestante.toFixed(1) + " metros";
+          }
         }
-      }
+      });
+
+      // Registrar el componente de seguimiento en la escena
+      document.querySelector('a-scene').setAttribute('seguimiento-caminata', '');
     </script>
   </body>
 </html>
