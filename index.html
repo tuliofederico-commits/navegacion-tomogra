@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>GPS Sanatorio - Pasos Automáticos</title>
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <title>GPS Sanatorio - Posicionamiento AR Real</title>
+    <!-- Usamos A-Frame actualizado con soporte WebXR nativo -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
       body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
       
-      /* Pantalla de Selección */
+      /* Pantalla de Selección de Destino */
       #modal-seleccion {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 25, 50, 0.96); z-index: 10000;
@@ -25,7 +26,7 @@
       }
       .btn-destino:active { background: #00b8d4; }
 
-      /* HUD Superior en vivo */
+      /* HUD de Posicionamiento en Vivo */
       #hud-nav {
         position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
         z-index: 999; background: rgba(0, 50, 100, 0.95); color: white;
@@ -36,38 +37,37 @@
   </head>
   <body>
 
-    <!-- 1. MODAL DE SELECCIÓN DE DESTINO -->
+    <!-- 1. MODAL DE SELECCIÓN -->
     <div id="modal-seleccion">
       <h2>Sanatorio - GPS de Interiores</h2>
       <p style="color: #00E5FF; margin-top: 0;">Selecciona el servicio al que deseas ir:</p>
       <div id="contenedor-botones">Cargando servicios...</div>
     </div>
 
-    <!-- 2. HUD SUPERIOR -->
+    <!-- 2. HUD DE POSICIONAMIENTO -->
     <div id="hud-nav">
-      <strong id="txt-destino-titulo" style="font-size: 15px; color: #00E5FF;">Guía Activa</strong><br>
-      <span id="txt-distancia" style="font-size: 14px;">Comienza a caminar...</span>
+      <strong id="txt-destino-titulo" style="font-size: 15px; color: #00E5FF;">Posicionamiento Activo</strong><br>
+      <span id="txt-distancia" style="font-size: 14px;">Iniciando sensores de posición...</span>
     </div>
 
-    <!-- 3. ESCENA 3D -->
-    <a-scene embedded>
+    <!-- 3. ESCENA 3D CON SOPORTE WEBXR (POSICIONAMIENTO REAL) -->
+    <a-scene webxr="requiredFeatures: local-floor, hit-test;" vr-mode-ui="enabled: false">
       <a-light type="ambient" color="#FFF" intensity="1.2"></a-light>
       
-      <!-- Línea proyectada en el piso -->
-      <a-entity id="linea-piso" rotation="-90 0 0" position="0 0.01 0" visible="false"></a-entity>
+      <!-- Contenedor dinámico de la ruta en el piso -->
+      <a-entity id="ruta-espacial" position="0 0 0">
+        <a-entity id="linea-piso" rotation="-90 0 0" position="0 0.01 0" visible="false"></a-entity>
+        <a-entity id="cartel-destino" position="0 1.8 0" visible="false"></a-entity>
+      </a-entity>
 
-      <!-- Cartel flotante de destino -->
-      <a-entity id="cartel-destino" position="0 1.8 0" visible="false"></a-entity>
-
-      <!-- Cámara -->
-      <a-entity camera look-controls position="0 1.6 0"></a-entity>
+      <!-- Cámara con seguimiento de posición real en el espacio -->
+      <a-entity id="camara-ar" camera look-controls position="0 1.6 0" seguimiento-posicion></a-entity>
     </a-scene>
 
     <script>
       let datosServicios = [];
       let servicioActual = null;
-      let distanciaRecorrida = 0;
-      let ultimoPaso = 0;
+      let sistemaIniciado = false;
 
       // Cargar base de datos JSON
       fetch('servicios.json')
@@ -81,28 +81,15 @@
             btn.className = 'btn-destino';
             let lateral = s.posicion_lateral !== 'centro' ? ` (${s.posicion_lateral})` : '';
             btn.innerHTML = `${s.icono} <strong>${s.nombre}</strong>${lateral} - ${s.distancia_m}m`;
-            btn.onclick = () => iniciarGuiaYSensores(s);
+            btn.onclick = () => configurarDestino(s);
             cont.appendChild(btn);
           });
         });
 
-      function iniciarGuiaYSensores(servicio) {
+      function configurarDestino(servicio) {
         servicioActual = servicio;
-        distanciaRecorrida = 0;
 
-        // 1. ACTIVAR SENSORES AUTOMÁTICAMENTE USANDO EL TOQUE DEL BOTÓN
-        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-          DeviceMotionEvent.requestPermission()
-            .then(response => {
-              if (response === 'granted') {
-                window.addEventListener('devicemotion', detectarPasos);
-              }
-            }).catch(console.error);
-        } else {
-          window.addEventListener('devicemotion', detectarPasos);
-        }
-
-        // 2. CONFIGURAR INTERFAZ Y RUTA
+        // Ocultar modal y mostrar HUD
         document.getElementById('modal-seleccion').style.display = 'none';
         document.getElementById('hud-nav').style.display = 'block';
         document.getElementById('txt-destino-titulo').innerText = "Ruta: " + servicio.nombre.toUpperCase();
@@ -110,14 +97,14 @@
         let metaX = servicio.offset_x_m || 0;
         let metaZ = -servicio.distancia_m;
 
-        // Dibujar línea en el piso
+        // 1. Dibujar línea en el piso orientada al destino
         let lineaPiso = document.getElementById('linea-piso');
         lineaPiso.setAttribute('visible', true);
         lineaPiso.innerHTML = `
           <a-plane width="0.4" height="${servicio.distancia_m}" color="${servicio.color}" opacity="0.9" position="${metaX/2} ${servicio.distancia_m/2} 0"></a-plane>
         `;
 
-        // Colocar cartel flotante en el destino
+        // 2. Colocar cartel flotante en las coordenadas exactas del servicio
         let cartel = document.getElementById('cartel-destino');
         cartel.setAttribute('visible', true);
         cartel.setAttribute('position', `${metaX} 1.8 ${metaZ}`);
@@ -128,39 +115,35 @@
           <a-cone radius-bottom="0.3" radius-top="0" height="0.6" color="#00E5FF" position="0 0.8 0" animation="property: position; to: 0 1.2 0; dir: alternate; dur: 800; loop: true"></a-cone>
         `;
 
-        actualizarDistanciaUI();
+        sistemaIniciado = true;
       }
 
-      // Algoritmo de detección de pasos mediante acelerómetro
-      function detectarPasos(e) {
-        if (!servicioActual) return;
-        let acc = e.accelerationIncludingGravity;
-        if (!acc) return;
+      // Componente de A-Frame para rastrear la posición real del celular en metros (X, Y, Z)
+      AFRAME.registerComponent('seguimiento-posicion', {
+        tick: function () {
+          if (!sistemaIniciado || !servicioActual) return;
 
-        let magnitud = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-        let ahora = Date.now();
+          // Obtener la posición física actual de la cámara en el espacio 3D del navegador
+          let posCamara = this.el.object3D.position;
+          
+          // La distancia recorrida a lo largo del pasillo corresponde al desplazamiento en el eje Z
+          let distanciaRecorridaZ = Math.abs(posCamara.z);
+          let distanciaRestante = servicioActual.distancia_m - distanciaRecorridaZ;
 
-        // Detectar un pico de aceleración al dar un paso (con filtro de tiempo de 350ms)
-        if (magnitud > 11.5 && (ahora - ultimoPaso) > 350) {
-          ultimoPaso = ahora;
-          // Cada paso cuenta aproximadamente 0.75 metros
-          distanciaRecorrida = Math.min(servicioActual.distancia_m, distanciaRecorrida + 0.75);
-          actualizarDistanciaUI();
+          let txt = document.getElementById('txt-distancia');
+
+          if (distanciaRestante <= 0.5) {
+            txt.innerHTML = "¡Has llegado a <strong>" + servicioActual.nombre + "</strong>!";
+            txt.style.color = "#00E5FF";
+          } else if (distanciaRestante < 0) {
+            txt.innerHTML = "Has pasado el destino ligeramente.";
+            txt.style.color = "#FFC107";
+          } else {
+            txt.innerHTML = "Faltan <strong>" + distanciaRestante.toFixed(1) + " metros</strong>";
+            txt.style.color = "#FFF";
+          }
         }
-      }
-
-      function actualizarDistanciaUI() {
-        let restante = servicioActual.distancia_m - distanciaRecorrida;
-        let txt = document.getElementById('txt-distancia');
-        
-        if (restante <= 0.5) {
-          txt.innerHTML = "¡Has llegado a <strong>" + servicioActual.nombre + "</strong>!";
-          txt.style.color = "#00E5FF";
-        } else {
-          txt.innerHTML = "Faltan <strong>" + restante.toFixed(1) + " metros</strong>";
-          txt.style.color = "#FFF";
-        }
-      }
+      });
     </script>
   </body>
 </html>
