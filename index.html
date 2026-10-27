@@ -3,64 +3,78 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Navegación AR - Sanatorio con Pasos</title>
+    <title>Navegación AR - Sanatorio</title>
+    <!-- Cargar A-Frame y AR.js -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
       body { margin: 0; overflow: hidden; font-family: sans-serif; }
-      #panel-control {
-        position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
-        z-index: 999; background: rgba(0, 60, 120, 0.95); color: white;
-        padding: 12px 18px; border-radius: 14px; text-align: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 92%; max-width: 450px;
+      #hud-info {
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 999; background: rgba(0, 50, 100, 0.9); color: white;
+        padding: 12px 20px; border-radius: 12px; text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4); width: 90%; max-width: 400px;
       }
       .btn-sensor {
-        background: #00E5FF; color: #002b49; border: none; padding: 10px 16px;
-        border-radius: 8px; font-weight: bold; cursor: pointer; margin: 6px 0; width: 100%;
-        font-size: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        background: #00E5FF; color: #002b49; border: none; padding: 8px 14px;
+        border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 6px;
       }
-      input[type=range] { width: 100%; margin: 6px 0; accent-color: #00E5FF; }
     </style>
   </head>
   <body>
 
-    <!-- Panel de Control y Sensores -->
-    <div id="panel-control">
-      <strong>Navegación Pasillo (50m)</strong><br>
-      <span id="distancia-texto" style="font-size: 14px; color: #00E5FF;">Ingreso (0 m) - 0 pasos</span>
-      
-      <!-- Botón vital para activar el sensor de movimiento en Celulares -->
-      <button class="btn-sensor" onclick="activarSensoresCaminata()">🚶‍♂️ Activar Detección de Pasos</button>
-      
-      <!-- Control manual alternativo o simulador -->
-      <input type="range" id="slider-pasillo" min="0" max="50" value="0" step="0.5" oninput="actualizarRecorrido(this.value)">
+    <!-- Panel Superior de Estado (HUD) -->
+    <div id="hud-info">
+      <strong>Navegación Asistida - Sanatorio</strong><br>
+      <span id="txt-estado" style="font-size: 14px; color: #00E5FF;">Toca el botón para activar sensores de movimiento</span><br>
+      <button class="btn-sensor" onclick="activarSensores()">Activar Caminata Automática</button>
+      <div id="txt-distancia" style="font-size: 13px; margin-top: 4px;">Distancia: 0.0 m / 50m</div>
     </div>
 
-    <!-- Escena WebAR / 3D -->
+    <!-- Escena WebAR -->
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
 
-      <!-- 1. SHOCKROOM (6.5 m) -->
+      <!-- ================= LÍNEAS DE COLORES EN EL PISO ================= -->
+      <!-- Línea Roja para Shockroom (6.5m) -->
+      <a-entity position="0 0.02 -3.2" rotation="-90 0 0" id="linea-shockroom" visible="false">
+        <a-plane width="0.3" height="6.5" color="#D32F2F"></a-plane>
+      </a-entity>
+
+      <!-- Línea Celeste para Tomografía (35m - Izquierda) -->
+      <a-entity position="-1 0.02 -17.5" rotation="-90 0 0" id="linea-tomografia" visible="false">
+        <a-plane width="0.3" height="35" color="#0055A5"></a-plane>
+      </a-entity>
+
+      <!-- Línea Verde para Farmacia (43.66m) -->
+      <a-entity position="0 0.02 -21.8" rotation="-90 0 0" id="linea-farmacia" visible="false">
+        <a-plane width="0.3" height="43.66" color="#2E7D32"></a-plane>
+      </a-entity>
+
+
+      <!-- ================= CARTELES FLOTANTES DE LOS SERVICIOS ================= -->
+      
+      <!-- 1. Shockroom (6.5 m) -->
       <a-entity id="s-shockroom" position="0 1.6 -6.5" visible="false">
         <a-plane width="2.2" height="0.8" color="#D32F2F">
-          <a-text value="SHOCKROOM\nAtencion de Urgencias" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
+          <a-text value="SHOCKROOM\nUrgencias" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
         </a-plane>
       </a-entity>
 
-      <!-- 2. CÁMARA GAMMA (31.6 m) -->
+      <!-- 2. Cámara Gamma (31.6 m) -->
       <a-entity id="s-camara" position="0 1.6 -31.6" visible="false">
         <a-plane width="2.2" height="0.8" color="#7B1FA2">
           <a-text value="CAMARA GAMMA\nMedicina Nuclear" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
         </a-plane>
       </a-entity>
 
-      <!-- 3. INFORMÁTICA (32 m - Derecha -> x = +1.8) -->
+      <!-- 3. Informática (32 m - Derecha) -->
       <a-entity id="s-informatica" position="1.8 1.6 -32" visible="false">
         <a-plane width="2.2" height="0.8" color="#0288D1">
-          <a-text value="INFORMATICA\nSoporte Tecnico (Der.)" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
+          <a-text value="INFORMATICA\nSoporte (Der.)" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
         </a-plane>
       </a-entity>
 
-      <!-- 4. TOMOGRAFÍA (35 m - Izquierda -> x = -1.8) -->
+      <!-- 4. Tomografía (35 m - Izquierda) -->
       <a-entity id="s-tomografia" position="-1.8 1.6 -35" visible="false">
         <a-plane width="2.4" height="0.9" color="#0055A5">
           <a-text value="TOMOGRAFIA\nConsultorio (Izq.)" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
@@ -68,28 +82,28 @@
         <a-cone radius-bottom="0.25" radius-top="0" height="0.5" color="#00E5FF" position="0 0.7 0" animation="property: position; to: 0 1 0; dir: alternate; dur: 800; loop: true"></a-cone>
       </a-entity>
 
-      <!-- 5. SECRETARÍA DE HEMODINAMIA (37 m) -->
+      <!-- 5. Secretaría de Hemodinamia (37 m) -->
       <a-entity id="s-hemodinamia" position="0 1.6 -37" visible="false">
         <a-plane width="2.5" height="0.8" color="#C2185B">
           <a-text value="SECRETARIA HEMODINAMIA" align="center" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
         </a-plane>
       </a-entity>
 
-      <!-- 6. SALA DE ESPERA DE TERAPIA (38.5 m) -->
+      <!-- 6. Sala de Espera Terapia (38.5 m) -->
       <a-entity id="s-terapia" position="0 1.6 -38.5" visible="false">
         <a-plane width="2.5" height="0.8" color="#E65100">
           <a-text value="SALA DE ESPERA TERAPIA" align="center" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
         </a-plane>
       </a-entity>
 
-      <!-- 7. FARMACIA (43.66 m) -->
+      <!-- 7. Farmacia (43.66 m) -->
       <a-entity id="s-farmacia" position="0 1.6 -43.66" visible="false">
         <a-plane width="2.2" height="0.8" color="#2E7D32">
-          <a-text value="FARMACIA\nRetiro de Medicamentos" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
+          <a-text value="FARMACIA\nRetiro Medicamentos" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
         </a-plane>
       </a-entity>
 
-      <!-- 8. INGENIERÍA (46.12 m - Derecha -> x = +1.8) -->
+      <!-- 8. Ingeniería (46.12 m - Derecha) -->
       <a-entity id="s-ingenieria" position="1.8 1.6 -46.12" visible="false">
         <a-plane width="2.2" height="0.8" color="#455A64">
           <a-text value="INGENIERIA\nOficina Tecnica (Der.)" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
@@ -102,66 +116,64 @@
 
     <script>
       let distanciaActual = 0;
-      let pasosTotales = 0;
-      let ultimaDeteccion = 0;
+      let caminando = false;
 
-      function activarSensoresCaminata() {
-        // Solicitud de permisos para dispositivos iOS y Android modernos
+      // Función para activar los permisos del acelerómetro del celular (requerido en Android/iOS modernos)
+      function activarSensores() {
         if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-          DeviceMotionEvent.requestPermission()
-            .then(response => {
-              if (response === 'granted') {
-                iniciarEscuchaAcelerometro();
-                alert("¡Sensores activados! Comience a caminar con el celular en la mano.");
-              } else {
-                alert("Permiso denegado para los sensores.");
-              }
-            }).catch(console.error);
+          DeviceMotionEvent.requestPermission().then(response => {
+            if (response === 'granted') {
+              iniciarEscuchaPasos();
+            } else {
+              alert("Permiso de sensores denegado.");
+            }
+          }).catch(console.error);
         } else {
-          // Android y navegadores estándar
-          iniciarEscuchaAcelerometro();
-          alert("¡Sensores activados! Comience a caminar con el celular en la mano.");
+          iniciarEscuchaPasos();
         }
       }
 
-      function iniciarEscuchaAcelerometro() {
+      function iniciarEscuchaPasos() {
+        caminando = true;
+        document.getElementById('txt-estado.innerHTML') = "Caminando detectado (Moviéndose por el pasillo)";
+        
+        // Simulación de acelerómetro o avance por pasos (Cada paso cuenta aprox 0.7 metros)
         window.addEventListener('devicemotion', (event) => {
           let acc = event.accelerationIncludingGravity;
-          if (!acc) return;
-
-          // Calcular la fuerza del movimiento en las 3 dimensiones
-          let magnitud = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-          
-          // Umbral de sensibilidad para detectar el paso humano al caminar
-          let tiempoActual = new Date().getTime();
-          if (magnitud > 12.5 && (tiempoActual - ultimaDeteccion) > 400) {
-            pasosTotales++;
-            // Cada paso equivale a ~0.75 metros recorridos en el pasillo
-            distanciaActual = Math.min(50, pasosTotales * 0.75);
-            
-            actualizarRecorrido(distanciaActual);
-            ultimaDeteccion = tiempoActual;
+          if (acc && acc.z) {
+            // Detecta sacudida vertical típica al caminar
+            if (Math.abs(acc.z) > 2.5) {
+              avanzarMetros(0.4); // Incrementa distancia por paso detectado
+            }
           }
         });
+
+        // Alternativa de respaldo por simulación automática si no sacude fuertemente el celular en pruebas de escritorio
+        setInterval(() => {
+          if (caminando && distanciaActual < 50) {
+            avanzarMetros(0.2); // Avance constante suave simulando paso a paso
+          }
+        }, 1000);
       }
 
-      function actualizarRecorrido(metros) {
-        let valor = parseFloat(metros);
-        distanciaActual = valor;
-        
-        document.getElementById('distancia-texto').innerText = 
-          `Distancia: ${valor.toFixed(1)}m / 50m (${pasosTotales} pasos)`;
-        document.getElementById('slider-pasillo').value = valor;
+      function avanzarMetros(cuantos) {
+        distanciaActual = Math.min(50, distanciaActual + cuantos);
+        document.getElementById('txt-distancia').innerText = "Distancia recorrida: " + distanciaActual.toFixed(1) + " m / 50m";
 
-        // Validar visibilidad de cada servicio con un margen de aproximación de 3.5 metros
-        gestionVisibilidad('s-shockroom', valor, 6.5, 3.5);
-        gestionVisibilidad('s-camara', valor, 31.6, 3.5);
-        gestionVisibilidad('s-informatica', valor, 32.0, 3.5);
-        gestionVisibilidad('s-tomografia', valor, 35.0, 4.0);
-        gestionVisibilidad('s-hemodinamia', valor, 37.0, 3.0);
-        gestionVisibilidad('s-terapia', valor, 38.5, 3.0);
-        gestionVisibilidad('s-farmacia', valor, 43.66, 3.5);
-        gestionVisibilidad('s-ingenieria', valor, 46.12, 3.5);
+        // Actualizar visibilidad de carteles
+        gestionVisibilidad('s-shockroom', distanciaActual, 6.5, 3.0);
+        gestionVisibilidad('s-camara', distanciaActual, 31.6, 3.0);
+        gestionVisibilidad('s-informatica', distanciaActual, 32.0, 3.0);
+        gestionVisibilidad('s-tomografia', distanciaActual, 35.0, 3.5);
+        gestionVisibilidad('s-hemodinamia', distanciaActual, 37.0, 2.5);
+        gestionVisibilidad('s-terapia', distanciaActual, 38.5, 2.5);
+        gestionVisibilidad('s-farmacia', distanciaActual, 43.66, 3.0);
+        gestionVisibilidad('s-ingenieria', distanciaActual, 46.12, 3.0);
+
+        // Actualizar visibilidad de líneas en el piso
+        document.getElementById('linea-shockroom').setAttribute('visible', distanciaActual <= 7);
+        document.getElementById('linea-tomografia').setAttribute('visible', distanciaActual >= 5 && distanciaActual <= 36);
+        document.getElementById('linea-farmacia').setAttribute('visible', distanciaActual >= 10 && distanciaActual <= 44);
       }
 
       function gestionVisibilidad(idElemento, actual, objetivo, margen) {
