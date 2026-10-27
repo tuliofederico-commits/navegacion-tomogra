@@ -1,160 +1,368 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>GPS Sanatorio - Realidad Aumentada</title>
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <style>
-      body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
-      
-      /* Pantalla Inicial de Selección de Destino */
-      #modal-seleccion {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 30, 60, 0.98); z-index: 10000;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-        color: white; padding: 20px; box-sizing: border-box; text-align: center;
-      }
-      #contenedor-botones {
-        width: 100%; max-width: 360px; max-height: 65vh; overflow-y: auto; margin-top: 10px;
-      }
-      .btn-destino {
-        background: #00E5FF; color: #002b49; border: none; padding: 12px 16px;
-        margin: 6px 0; border-radius: 10px; font-weight: bold; font-size: 15px;
-        width: 100%; cursor: pointer; text-align: left; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      }
-      .btn-destino:active { background: #00b8d4; }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Prueba AR - Navegación Sanatorio</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #111;
+    }
 
-      /* HUD Superior de Estado */
-      #hud-nav {
-        position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
-        z-index: 999; background: rgba(0, 50, 100, 0.92); color: white;
-        padding: 12px 20px; border-radius: 14px; text-align: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 90%; max-width: 380px; display: none;
-      }
+    #info {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      z-index: 10;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.75);
+      color: white;
+      font-size: 15px;
+      line-height: 1.35;
+      text-align: center;
+    }
 
-      /* Control deslizante de avance en vivo (Para simular la caminata real con precisión de milímetros) */
-      #panel-deslizador {
-        position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-        z-index: 999; background: rgba(0, 30, 60, 0.95); padding: 12px 20px;
-        border-radius: 14px; width: 90%; max-width: 380px; text-align: center; display: none;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5); color: white;
-      }
-      input[type=range] { width: 100%; accent-color: #00E5FF; cursor: pointer; }
-    </style>
-  </head>
-  <body>
+    #estado {
+      margin-top: 6px;
+      font-weight: bold;
+    }
 
-    <!-- 1. MODAL DE SELECCIÓN -->
-    <div id="modal-seleccion">
-      <h2>Sanatorio - Guía AR</h2>
-      <p style="color: #00E5FF; margin-top: 0;">Selecciona el servicio que buscas:</p>
-      <div id="contenedor-botones">Cargando servicios...</div>
-    </div>
+    #ayuda {
+      position: fixed;
+      bottom: 20px;
+      left: 15px;
+      right: 15px;
+      z-index: 10;
+      padding: 12px;
+      border-radius: 10px;
+      background: rgba(0,0,0,.65);
+      color: white;
+      font-size: 14px;
+      text-align: center;
+    }
 
-    <!-- 2. HUD SUPERIOR -->
-    <div id="hud-nav">
-      <strong id="txt-destino-titulo" style="font-size: 15px; color: #00E5FF;">Guía Activa</strong><br>
-      <span id="txt-distancia" style="font-size: 14px;">Desliza para avanzar por el pasillo</span>
-    </div>
+    #reset {
+      display: none;
+      position: fixed;
+      right: 15px;
+      bottom: 80px;
+      z-index: 20;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
 
-    <!-- 3. PANEL INFERIOR DE AVANCE FLUIDO -->
-    <div id="panel-deslizador">
-      <span style="font-size: 12px; color: #00E5FF;">Simulador de Pasillo (Desliza al caminar)</span>
-      <input type="range" id="slider-metros" min="0" max="50" step="0.5" value="0" oninput="actualizarAvance(this.value)">
-      <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; color: #aaa;">
-        <span>Ingreso (0m)</span>
-        <span>Mitad (25m)</span>
-        <span>Fin (50m)</span>
-      </div>
-    </div>
+<body>
 
-    <!-- 4. ESCENA AR.JS (Cámara en Vivo) -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;" vr-mode-ui="enabled: false">
-      
-      <!-- Línea dinámica proyectada en el piso -->
-      <a-entity id="linea-piso" rotation="-90 0 0" position="0 0.01 0" visible="false"></a-entity>
+<div id="info">
+  <strong>PRUEBA AR — NAVEGACIÓN</strong>
+  <div id="estado">Preparando realidad aumentada...</div>
+</div>
 
-      <!-- Cartel flotante de destino -->
-      <a-entity id="cartel-destino" position="0 1.8 0" visible="false"></a-entity>
+<div id="ayuda">
+  Tocá el botón de AR. Luego apuntá al piso y tocá una superficie para colocar la flecha.
+</div>
 
-      <!-- Cámara -->
-      <a-entity camera></a-entity>
-    </a-scene>
+<button id="reset">Volver a colocar</button>
 
-    <script>
-      let datosServicios = [];
-      let servicioActual = null;
+<script type="module">
+import * as THREE from
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
-      // Cargar base de datos desde servicios.json
-      fetch('servicios.json')
-        .then(res => res.json())
-        .then(data => {
-          datosServicios = data.servicios;
-          let cont = document.getElementById('contenedor-botones');
-          cont.innerHTML = "";
-          datosServicios.forEach(s => {
-            let btn = document.createElement('button');
-            btn.className = 'btn-destino';
-            let lateral = s.posicion_lateral !== 'centro' ? ` (${s.posicion_lateral})` : '';
-            btn.innerHTML = `${s.icono} <strong>${s.nombre}</strong>${lateral} - ${s.distancia_m}m`;
-            btn.onclick = () => iniciarGuia(s);
-            cont.appendChild(btn);
+import { ARButton } from
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/ARButton.js';
+
+let camera, scene, renderer;
+let controller;
+let reticle;
+let hitTestSource = null;
+let hitTestSourceRequested = false;
+let flecha = null;
+
+const estado = document.getElementById('estado');
+const ayuda = document.getElementById('ayuda');
+const reset = document.getElementById('reset');
+
+/* -------------------------------------------------------
+   ESCENA
+------------------------------------------------------- */
+
+init();
+animate();
+
+function init() {
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth / window.innerHeight,
+    0.01,
+    20
+  );
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+
+  document.body.appendChild(renderer.domElement);
+
+  /* Luz */
+  const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 2);
+  scene.add(light);
+
+  /* Retícula: indica dónde se detectó el piso */
+  reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.08, 0.12, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({
+      color: 0x00ff88,
+      transparent: true,
+      opacity: 0.8
+    })
+  );
+
+  reticle.matrixAutoUpdate = false;
+  reticle.visible = false;
+  scene.add(reticle);
+
+  /* Controlador de toque */
+  controller = renderer.xr.getController(0);
+
+  controller.addEventListener('select', colocarFlecha);
+
+  scene.add(controller);
+
+  /* Botón AR */
+  const arButton = ARButton.createButton(renderer, {
+    requiredFeatures: ['hit-test'],
+    optionalFeatures: ['dom-overlay'],
+    domOverlay: {
+      root: document.body
+    }
+  });
+
+  arButton.style.bottom = '20px';
+  arButton.style.left = '50%';
+  arButton.style.transform = 'translateX(-50%)';
+  arButton.style.width = '220px';
+  arButton.style.height = '55px';
+  arButton.style.fontSize = '18px';
+  arButton.style.fontWeight = 'bold';
+  arButton.style.borderRadius = '12px';
+
+  document.body.appendChild(arButton);
+
+  renderer.xr.addEventListener('sessionstart', () => {
+    estado.textContent = 'AR iniciada. Buscando el piso...';
+    ayuda.textContent =
+      'Mové lentamente el teléfono y apuntá hacia el piso. Cuando aparezca el círculo verde, tocá la pantalla.';
+  });
+
+  renderer.xr.addEventListener('sessionend', () => {
+    estado.textContent = 'AR finalizada.';
+    ayuda.textContent = 'Podés volver a iniciar la prueba.';
+    hitTestSourceRequested = false;
+    hitTestSource = null;
+  });
+
+  reset.addEventListener('click', () => {
+    if (flecha) {
+      scene.remove(flecha);
+      flecha = null;
+    }
+
+    reset.style.display = 'none';
+
+    estado.textContent = 'Buscando nuevamente el piso...';
+    ayuda.textContent =
+      'Apuntá al piso. Cuando aparezca el círculo verde, tocá la pantalla.';
+  });
+
+  window.addEventListener('resize', onWindowResize);
+}
+
+/* -------------------------------------------------------
+   CREAR FLECHA
+------------------------------------------------------- */
+
+function crearFlecha() {
+
+  const grupo = new THREE.Group();
+
+  /*
+    Flecha simple orientada hacia adelante.
+    Largo aproximado: 0,70 m.
+  */
+
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x00ff66,
+    side: THREE.DoubleSide
+  });
+
+  const cuerpo = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.025, 0.48),
+    material
+  );
+
+  cuerpo.position.z = -0.12;
+
+  const punta = new THREE.Mesh(
+    new THREE.ConeGeometry(0.16, 0.28, 4),
+    material
+  );
+
+  punta.rotation.x = Math.PI / 2;
+  punta.position.z = -0.42;
+
+  grupo.add(cuerpo);
+  grupo.add(punta);
+
+  return grupo;
+}
+
+/* -------------------------------------------------------
+   COLOCAR FLECHA EN EL PISO
+------------------------------------------------------- */
+
+function colocarFlecha() {
+
+  if (!reticle.visible) return;
+
+  if (flecha) {
+    scene.remove(flecha);
+  }
+
+  flecha = crearFlecha();
+
+  /*
+    Copiamos la posición y orientación espacial
+    detectadas por WebXR.
+  */
+
+  flecha.position.setFromMatrixPosition(reticle.matrix);
+  flecha.quaternion.setFromRotationMatrix(reticle.matrix);
+
+  scene.add(flecha);
+
+  estado.textContent =
+    'Flecha colocada. Ahora caminá unos metros.';
+
+  ayuda.textContent =
+    'IMPORTANTE: no apuntes nuevamente al lugar de la flecha. Caminá y comprobá si permanece fija en el ambiente.';
+
+  reset.style.display = 'block';
+}
+
+/* -------------------------------------------------------
+   HIT TEST
+------------------------------------------------------- */
+
+function render(timestamp, frame) {
+
+  if (frame) {
+
+    const referenceSpace =
+      renderer.xr.getReferenceSpace();
+
+    const session =
+      renderer.xr.getSession();
+
+    if (!hitTestSourceRequested) {
+
+      session.requestReferenceSpace('viewer')
+        .then((referenceSpace) => {
+
+          session.requestHitTestSource({
+            space: referenceSpace
+          }).then((source) => {
+            hitTestSource = source;
           });
-        })
-        .catch(err => {
-          document.getElementById('contenedor-botones').innerText = "Error cargando servicios.json.";
+
         });
 
-      function iniciarGuia(servicio) {
-        servicioActual = servicio;
+      session.addEventListener(
+        'end',
+        () => {
+          hitTestSourceRequested = false;
+          hitTestSource = null;
+        }
+      );
 
-        // Ocultar modal, activar cámara y mostrar paneles de navegación
-        document.getElementById('modal-seleccion').style.display = 'none';
-        document.getElementById('hud-nav').style.display = 'block';
-        document.getElementById('panel-deslizador').style.display = 'block';
-        document.getElementById('txt-destino-titulo').innerText = "Ruta: " + servicio.nombre.toUpperCase();
+      hitTestSourceRequested = true;
+    }
 
-        let metaX = servicio.offset_x_m || 0;
-        let metaZ = -servicio.distancia_m;
+    if (hitTestSource) {
 
-        // 1. Dibujar línea fija en el piso hasta el servicio
-        let lineaPiso = document.getElementById('linea-piso');
-        lineaPiso.setAttribute('visible', true);
-        lineaPiso.innerHTML = `
-          <a-plane width="0.4" height="${servicio.distancia_m}" color="${servicio.color}" opacity="0.85" position="${metaX/2} ${servicio.distancia_m/2} 0"></a-plane>
-        `;
+      const hitTestResults =
+        frame.getHitTestResults(hitTestSource);
 
-        // 2. Colocar cartel flotante en el destino exacto
-        let cartel = document.getElementById('cartel-destino');
-        cartel.setAttribute('visible', true);
-        cartel.setAttribute('position', `${metaX} 1.8 ${metaZ}`);
-        cartel.innerHTML = `
-          <a-plane width="2.6" height="1.0" color="${servicio.color}">
-            <a-text value="${servicio.nombre.toUpperCase()}\nDestino Exacto" align="center" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
-          </a-plane>
-          <a-cone radius-bottom="0.3" radius-top="0" height="0.6" color="#00E5FF" position="0 0.8 0" animation="property: position; to: 0 1.2 0; dir: alternate; dur: 800; loop: true"></a-cone>
-        `;
+      if (hitTestResults.length > 0) {
 
-        document.getElementById('slider-metros').value = 0;
-        actualizarAvance(0);
-      }
+        const hit = hitTestResults[0];
 
-      function actualizarAvance(metrosRecorridos) {
-        if (!servicioActual) return;
-        let recorrido = parseFloat(metrosRecorridos);
-        let restante = servicioActual.distancia_m - recorrido;
-        let txt = document.getElementById('txt-distancia');
+        const pose =
+          hit.getPose(referenceSpace);
 
-        if (restante <= 0) {
-          txt.innerHTML = "¡Has llegado a <strong>" + servicioActual.nombre + "</strong>!";
-          txt.style.color = "#00E5FF";
-        } else {
-          txt.innerHTML = "Faltan aprox. <strong>" + restante.toFixed(1) + " metros</strong>";
-          txt.style.color = "#FFF";
+        reticle.visible = true;
+
+        reticle.matrix.fromArray(
+          pose.transform.matrix
+        );
+
+        if (!flecha) {
+          estado.textContent =
+            'Piso detectado. Tocá la pantalla para colocar la flecha.';
+        }
+
+      } else {
+
+        reticle.visible = false;
+
+        if (!flecha) {
+          estado.textContent =
+            'Buscando una superficie...';
         }
       }
-    </script>
-  </body>
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+function animate() {
+  renderer.setAnimationLoop(render);
+}
+
+function onWindowResize() {
+
+  camera.aspect =
+    window.innerWidth / window.innerHeight;
+
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+  );
+}
+</script>
+
+</body>
 </html>
+
