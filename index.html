@@ -3,50 +3,96 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Navegación Sanatorio - AR</title>
+    <title>Tour Virtual y WebAR - Sanatorio</title>
+    <!-- Cargar A-Frame y AR.js -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
+      body { margin: 0; overflow: hidden; font-family: sans-serif; }
       #panel-control {
-        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-        z-index: 999; background: rgba(0, 85, 165, 0.95); color: white;
-        padding: 12px 20px; border-radius: 12px; font-family: sans-serif;
-        text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.4); width: 90%; max-width: 400px;
+        position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
+        z-index: 999; background: rgba(0, 60, 120, 0.95); color: white;
+        padding: 12px 18px; border-radius: 14px; text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 92%; max-width: 450px;
       }
-      input[type=range] { width: 100%; margin-top: 8px; accent-color: #00E5FF; }
+      input[type=range] { width: 100%; margin: 8px 0; accent-color: #00E5FF; }
+      .btn-tour {
+        background: #00E5FF; color: #002b49; border: none; padding: 6px 12px;
+        border-radius: 6px; font-weight: bold; cursor: pointer; margin: 3px;
+      }
     </style>
   </head>
-  <body style="margin: 0; overflow: hidden;">
+  <body>
 
-    <!-- Panel de Control Deslizante (Simula el avance por el pasillo desde el Punto 0) -->
+    <!-- Panel de Control para Tour Virtual / Simulación de Recorrido -->
     <div id="panel-control">
-      <strong>Recorrido del Pasillo</strong><br>
-      <span id="distancia-texto" style="font-size: 14px;">Distancia: 0 metros (Ingreso)</span>
-      <input type="range" id="slider-pasillo" min="0" max="25" value="0" step="1" oninput="actualizarPosicion(this.value)">
+      <strong>Recorrido Corredor Principal (50m)</strong><br>
+      <span id="distancia-texto" style="font-size: 14px; color: #00E5FF;">Punto de Ingreso (0 m)</span>
+      <input type="range" id="slider-pasillo" min="0" max="50" value="0" step="0.5" oninput="actualizarRecorrido(this.value)">
+      <div>
+        <button class="btn-tour" onclick="moverMetros(-5)">◀ -5m</button>
+        <button class="btn-tour" onclick="toggleAutoTour()">▶ Tour Automático</button>
+        <button class="btn-tour" onclick="moverMetros(5)">+5m ▶</button>
+      </div>
     </div>
 
-    <!-- Escena WebAR -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+    <!-- Escena WebAR / 3D -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
 
-      <!-- SERVICIO 1: FARMACIA (Aparece a los 5 metros) -->
-      <a-entity id="servicio-farmacia" position="0 1.5 -5" visible="false">
+      <!-- 1. SHOCKROOM (6.5 m) -->
+      <a-entity id="s-shockroom" position="0 1.6 -6.5" visible="false">
+        <a-plane width="2.2" height="0.8" color="#D32F2F">
+          <a-text value="SHOCKROOM\nAtencion de Urgencias" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- 2. CÁMARA GAMMA (31.6 m) -->
+      <a-entity id="s-camara" position="0 1.6 -31.6" visible="false">
+        <a-plane width="2.2" height="0.8" color="#7B1FA2">
+          <a-text value="CAMARA GAMMA\nMedicina Nuclear" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- 3. INFORMÁTICA (32 m - Derecha -> x = +1.8) -->
+      <a-entity id="s-informatica" position="1.8 1.6 -32" visible="false">
+        <a-plane width="2.2" height="0.8" color="#0288D1">
+          <a-text value="INFORMATICA\nSoporte Tecnico (Der.)" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- 4. TOMOGRAFÍA (35 m - Izquierda -> x = -1.8) -->
+      <a-entity id="s-tomografia" position="-1.8 1.6 -35" visible="false">
+        <a-plane width="2.4" height="0.9" color="#0055A5">
+          <a-text value="TOMOGRAFIA\nConsultorio (Izq.)" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
+        </a-plane>
+        <a-cone radius-bottom="0.25" radius-top="0" height="0.5" color="#00E5FF" position="0 0.7 0" animation="property: position; to: 0 1 0; dir: alternate; dur: 800; loop: true"></a-cone>
+      </a-entity>
+
+      <!-- 5. SECRETARÍA DE HEMODINAMIA (37 m) -->
+      <a-entity id="s-hemodinamia" position="0 1.6 -37" visible="false">
+        <a-plane width="2.5" height="0.8" color="#C2185B">
+          <a-text value="SECRETARIA HEMODINAMIA" align="center" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- 6. SALA DE ESPERA DE TERAPIA (38.5 m) -->
+      <a-entity id="s-terapia" position="0 1.6 -38.5" visible="false">
+        <a-plane width="2.5" height="0.8" color="#E65100">
+          <a-text value="SALA DE ESPERA TERAPIA" align="center" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- 7. FARMACIA (43.66 m) -->
+      <a-entity id="s-farmacia" position="0 1.6 -43.66" visible="false">
         <a-plane width="2.2" height="0.8" color="#2E7D32">
-          <a-text value="FARMACIA\nRetiro de Medicamentos" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
+          <a-text value="FARMACIA\nRetiro de Medicamentos" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
         </a-plane>
       </a-entity>
 
-      <!-- SERVICIO 2: TOMOGRAFÍA (Aparece a los 12 metros) -->
-      <a-entity id="servicio-tomografia" position="0 1.5 -12" visible="false">
-        <a-plane width="2.2" height="0.8" color="#0055A5">
-          <a-text value="SERVICIO DE TOMOGRAFIA\nConsultorio 12" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
-        </a-plane>
-        <a-cone radius-bottom="0.3" radius-top="0" height="0.6" color="#00E5FF" position="0 0.6 0" animation="property: position; to: 0 0.9 0; dir: alternate; dur: 800; loop: true"></a-cone>
-      </a-entity>
-
-      <!-- SERVICIO 3: CÁMARA GAMMA (Aparece a los 20 metros) -->
-      <a-entity id="servicio-camara" position="0 1.5 -20" visible="false">
-        <a-plane width="2.2" height="0.8" color="#6A1B9A">
-          <a-text value="CAMARA GAMMA\nMedicina Nuclear" align="center" color="#FFFFFF" scale="0.7 0.7 0.7"></a-text>
+      <!-- 8. INGENIERÍA (46.12 m - Derecha -> x = +1.8) -->
+      <a-entity id="s-ingenieria" position="1.8 1.6 -46.12" visible="false">
+        <a-plane width="2.2" height="0.8" color="#455A64">
+          <a-text value="INGENIERIA\nOficina Tecnica (Der.)" align="center" color="#FFFFFF" scale="0.65 0.65 0.65"></a-text>
         </a-plane>
       </a-entity>
 
@@ -55,22 +101,52 @@
     </a-scene>
 
     <script>
-      function actualizarPosicion(metros) {
-        document.getElementById('distancia-texto').innerText = "Distancia recorrida: " + metros + " metros";
+      let autoTourInterval = null;
 
-        // Lógica de visibilidad según los metros recorridos en el pasillo
-        let farmacia = document.getElementById('servicio-farmacia');
-        let tomografia = document.getElementById('servicio-tomografia');
-        let camara = document.getElementById('servicio-camara');
+      function actualizarRecorrido(valor) {
+        let metros = parseFloat(valor);
+        document.getElementById('distancia-texto').innerText = "Distancia recorrida: " + metros.toFixed(1) + " metros / 50m";
+        document.getElementById('slider-pasillo').value = metros;
 
-        // Farmacia visible entre 3 y 8 metros
-        farmacia.setAttribute('visible', metros >= 3 && metros <= 8);
+        // Margen de visibilidad de 4 metros para cada cartel a medida que te acercas/pasas
+        gestionVisibilidad('s-shockroom', metros, 6.5, 3.5);
+        gestionVisibilidad('s-camara', metros, 31.6, 3.5);
+        gestionVisibilidad('s-informatica', metros, 32.0, 3.5);
+        gestionVisibilidad('s-tomografia', metros, 35.0, 4.0);
+        gestionVisibilidad('s-hemodinamia', metros, 37.0, 3.0);
+        gestionVisibilidad('s-terapia', metros, 38.5, 3.0);
+        gestionVisibilidad('s-farmacia', metros, 43.66, 3.5);
+        gestionVisibilidad('s-ingenieria', metros, 46.12, 3.5);
+      }
 
-        // Tomografía visible entre 10 y 16 metros
-        tomografia.setAttribute('visible', metros >= 10 && metros <= 16);
+      function gestionVisibilidad(idElemento, actual, objetivo, margen) {
+        let el = document.getElementById(idElemento);
+        // El cartel aparece cuando estás a una distancia menor o igual al margen del objetivo
+        let visible = Math.abs(actual - objetivo) <= margen;
+        el.setAttribute('visible', visible);
+      }
 
-        // Cámara Gamma visible a partir de los 18 metros
-        camara.setAttribute('visible', metros >= 18);
+      function moverMetros(cuantos) {
+        let slider = document.getElementById('slider-pasillo');
+        let nuevoValor = Math.min(50, Math.max(0, parseFloat(slider.value) + cuantos));
+        actualizarRecorrido(nuevoValor);
+      }
+
+      function toggleAutoTour() {
+        let btn = event.target;
+        if (autoTourInterval) {
+          clearInterval(autoTourInterval);
+          autoTourInterval = null;
+          btn.innerText = "▶ Tour Automático";
+        } else {
+          btn.innerText = "⏸ Pausar Tour";
+          autoTourInterval = setInterval(() => {
+            let slider = document.getElementById('slider-pasillo');
+            let val = parseFloat(slider.value) + 0.5;
+            if (val > 50) val = 0;
+            actualizarRecorrido(val);
+          }, 150);
+        }
       }
     </script>
   </body>
