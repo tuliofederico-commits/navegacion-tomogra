@@ -1,0 +1,78 @@
+{
+  "sanatorio": "Sanatorio - Corredor Principal",
+  "longitud_pasillo_m": 50.0,
+  "servicios": [
+    {
+      "id": "shockroom",
+      "nombre": "Urgencias / Shockroom",
+      "distancia_m": 6.5,
+      "posicion_lateral": "centro",
+      "offset_x_m": 0.0,
+      "color": "#D32F2F",
+      "icono": "🚑"
+    },
+    {
+      "id": "camara_gamma",
+      "nombre": "Cámara Gamma",
+      "distancia_m": 31.6,
+      "posicion_lateral": "centro",
+      "offset_x_m": 0.0,
+      "color": "#7B1FA2",
+      "icono": "⚛️"
+    },
+    {
+      "id": "informatica",
+      "nombre": "Informática",
+      "distancia_m": 32.0,
+      "posicion_lateral": "derecha",
+      "offset_x_m": 1.8,
+      "color": "#0288D1",
+      "icono": "💻"
+    },
+    {
+      "id": "tomografia",
+      "nombre": "Tomografía",
+      "distancia_m": 35.0,
+      "posicion_lateral": "izquierda",
+      "offset_x_m": -1.8,
+      "color": "#0055A5",
+      "icono": "🦴"
+    },
+    {
+      "id": "hemodinamia",
+      "nombre": "Secretaría de Hemodinamia",
+      "distancia_m": 37.0,
+      "posicion_lateral": "centro",
+      "offset_x_m": 0.0,
+      "color": "#C2185B",
+      "icono": "🫀"
+    },
+    {
+      "id": "terapia",
+      "nombre": "Sala de Espera Terapia",
+      "distancia_m": 38.5,
+      "posicion_lateral": "centro",
+      "offset_x_m": 0.0,
+      "color": "#E65100",
+      "icono": "🛋️"
+    },
+    {
+      "id": "farmacia",
+      "nombre": "Farmacia",
+      "distancia_m": 43.66,
+      "posicion_lateral": "centro",
+      "offset_x_m": 0.0,
+      "color": "#2E7D32",
+      "icono": "💊"
+    },
+    {
+      "id": "ingenieria",
+      "nombre": "Ingeniería Clínica",
+      "distancia_m": 46.12,
+      "posicion_lateral": "derecha",
+      "offset_x_m": 1.8,
+      "color": "#455A64",
+      "icono": "⚙️"
+    }
+  ]
+}
